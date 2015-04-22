@@ -1,0 +1,149 @@
+<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" version="2.0"><channel><title>Dave Silva</title><description>Dave Silva</description><link>http://localhost:2368/</link><generator>Ghost 0.6</generator><lastBuildDate>Wed, 22 Apr 2015 20:28:36 GMT</lastBuildDate><atom:link href="http://localhost:2368/rss/" rel="self" type="application/rss+xml"/><ttl>60</ttl><item><title>Building a Web-based Volume Control: Part 1</title><description>How I use an Arduino to control the volume of my speakers from a web interface.</description><link>http://localhost:2368/volume-control-part-1/</link><guid isPermaLink="false">294262b6-f4fb-4ef8-a67c-7539c2abd459</guid><category>electronics</category><category>arduino</category><dc:creator>Dave Silva</dc:creator><pubDate>Sat, 18 Apr 2015 00:12:00 GMT</pubDate><content:encoded>&lt;p&gt;&lt;em&gt;How I built a web-based remote control for an old set of speakers using an Arduino&lt;/em&gt;&lt;/p&gt;
+
+&lt;p&gt;For a while now, I've been wanting to poke my head down the electronics rabbit hole to see what's in there. For too long, I've been sitting high and mighty atop the software stack. It's time to get down off my perch and explore the wilds of the silicon jungle.&lt;/p&gt;
+
+&lt;h3 id="theproblem"&gt;The problem&lt;/h3&gt;
+
+&lt;p&gt;I have a set of very old Creative Inspire 5300 speakers. They're a cheap set of speakers that are almost 15 years old, but they're passable and still perfectly functional. At least, the speakers themselves are functional. The volume control, on the other hand, started breaking a long time ago. Something in there isn't making a good connection, so the speakers frequently turn off when you go to change the volume, and you have to rock the wheel back and forth to get them to turn back on again.&lt;/p&gt;
+
+&lt;p&gt;The easy solution of course, would be to crack open the volume control and fix the poor connection, but then I started thinking - what if I just build a new one? The volume control is a separate unit that plugs into the subwoofer, so I could swap it out for a new one easily, and while I'm at it, why not make a few improvements? Currently I have these speakers in the living room, where it's annoying to have to get up and walk across the room to change the volume. Wouldn't it be cool to have a replacement volume control that anyone in the room could operate from their phone?&lt;/p&gt;
+
+&lt;p&gt;So that's the goal: build an ethernet-connected volume control that allows anyone in the room to change the volume by visiting a web page on their phone. In this post I'm going to take a look at the hardware for the volume control - the part I was least familiar with going in. In a future post, I'll talk about how the server works.&lt;/p&gt;
+
+&lt;h3 id="thehardware"&gt;The hardware&lt;/h3&gt;
+
+&lt;ul&gt;
+&lt;li&gt;A set of Creative Inspire 5300 speakers&lt;/li&gt;
+&lt;li&gt;An &lt;a href="http://arduino.cc/en/Main/ArduinoBoardEthernet"&gt;Arduino Ethernet&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;A Microchip Technology MCP4131 digital potentiometer&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;p&gt;The first thing I did was take a closer look at the original volume control. Luckily, the connector used is a standard &lt;a href="http://en.wikipedia.org/wiki/PS/2_port"&gt;PS/2 mini-DIN connector&lt;/a&gt;. I had an old PS/2 extension cable lying around that I certainly didn't mind sacrificing for the plug, so the connector was taken care of without me having to hack up the original volume control. It made me feel a lot better knowing that I still had the old one intact in case I screwed up.&lt;/p&gt;
+
+&lt;p&gt;For the microcontroller, I used an &lt;a href="http://arduino.cc/en/Main/ArduinoBoardEthernet"&gt;Arduino Ethernet&lt;/a&gt;, because a network-connected microcontroller would be able to host its own webpage for controlling the volume, which seemed like the most self-contained way to do it. I didn't want to put a full computer in the loop to act as the server. Since the volume control is basically a potentiometer with a power switch, I would also need a digital potentiometer to let me drive the volume from the Arduino.&lt;/p&gt;
+
+&lt;h3 id="gettingstarted"&gt;Getting started&lt;/h3&gt;
+
+&lt;p&gt;The first step was to figure out what the pins in that mini-DIN connector do. Fortunately, a quick Google search revealed that someone had already figured out &lt;a href="http://pinoutsguide.com/Home/creative_inspire_5300_pinout.shtml"&gt;the pinout&lt;/a&gt;. Using a multimeter, I matched up the pins on the PS/2 connector diagram with the wire colors in my extension cable to get this table:&lt;/p&gt;
+
+&lt;table&gt;  
+    &lt;thead&gt;
+        &lt;/thead&gt;&lt;td&gt; Pin
+        &lt;/td&gt;&lt;td&gt; Color
+        &lt;/td&gt;&lt;td&gt; Description
+    
+
+    &lt;tbody&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 1
+            &lt;/td&gt;&lt;td&gt; Yellow
+            &lt;/td&gt;&lt;td&gt; GND
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 2
+            &lt;/td&gt;&lt;td&gt; Orange
+            &lt;/td&gt;&lt;td&gt; Vref
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 3
+            &lt;/td&gt;&lt;td&gt; Green
+            &lt;/td&gt;&lt;td&gt; Balance potentiometer middle leg
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 4
+            &lt;/td&gt;&lt;td&gt; Red
+            &lt;/td&gt;&lt;td&gt; Volume potentiometer middle leg
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 5
+            &lt;/td&gt;&lt;td&gt; Black
+            &lt;/td&gt;&lt;td&gt; LED Vdd
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 6
+            &lt;/td&gt;&lt;td&gt; Brown
+            &lt;/td&gt;&lt;td&gt; On Switch
+        &lt;/td&gt;&lt;/tr&gt;
+    &lt;/tbody&gt;
+&lt;/td&gt;&lt;/table&gt;
+
+&lt;p&gt;&lt;img src="http://localhost:2368/content/images/2015/02/MiniDIN-6_Connector_Pinout-1.png" alt="A 6-pin mini-DIN connector"&gt;&lt;/p&gt;
+
+&lt;p&gt;The on switch is pretty straightforward. The original volume control just connects that line to ground when you turn on the speakers. So, I tried touching the yellow and brown wires together and heard the audible &lt;em&gt;pop&lt;/em&gt; of the speakers turning on. So far so good.&lt;/p&gt;
+
+&lt;p&gt;A potentiometer, like the one used for the volume dial, has three legs. The two outer legs have a constant resistance between them, and the middle leg (the "wiper") has a varying resistance based on how far you rotate the dial. Full volume is no resistance, and low volume is high resistance. So, given that the red wire is labeled "balance potentiometer middle leg", I tried touching the red and orange wires together, which should be the same as turning the volume up all the way. For my neighbors' sake, I didn't try this while playing any sound through them, but I could hear that the quiet static got louder, so I was pretty sure I had figured it out.&lt;/p&gt;
+
+&lt;h3 id="thearduino"&gt;The Arduino&lt;/h3&gt;
+
+&lt;p&gt;Armed with my knowledge of the volume control, I was ready to dive into the microcontroller side of the equation, but almost immediately hit my first setback. I couldn't upload any programs to the Arduino! After spending a long time trying all of the different board and programmer options in the Arduino IDE with no success, I saw the suggestion that it might be an issue with the board's auto-reset.&lt;/p&gt;
+
+&lt;p&gt;Most of the Arduino boards (the Arduino Ethernet included) can reset themselves before uploading a new program. This is necessary because the board will only accept a new program immediately after restarting. For some reason, this wasn't happening, even after I tried flashing a new bootloader. The solution is just to press the reset button on the board every time you upload. It's a pain, but at least it works. You do have to be precise with the timing on pressing that button though - I found that the right time was somewhere around 3 seconds after hitting the upload button.&lt;/p&gt;
+
+&lt;h3 id="thepotentiometer"&gt;The potentiometer&lt;/h3&gt;
+
+&lt;p&gt;Here's where my limited knowledge of electronics really starts to catch up to me. The digital potentiometer I bought is an MCP4131, sold by SparkFun. Because this is the one that SparkFun sells, I expected to find a ton of resources showing exactly how to hook it up to an Arduino, and was disappointed when this turned out not to be the case. SparkFun provides a &lt;a href="http://www.mouser.com/ds/2/268/22060a-53835.pdf"&gt;datasheet&lt;/a&gt;, so I knew that it uses an &lt;a href="http://en.wikipedia.org/wiki/Serial_Peripheral_Interface_Bus"&gt;SPI&lt;/a&gt; interface, and I knew that the Arduino can talk SPI, but beyond that, I wasn't sure how to wire it up, or how to write code for it.&lt;/p&gt;
+
+&lt;p&gt;Luckily, I did find &lt;a href="http://forum.arduino.cc/index.php?topic=99533.0"&gt;this forum post&lt;/a&gt;, which directed me to the right diagram on the datasheet, along with a helpful explanation of how the abbreviations they use on the datasheet match up with the ones printed on the Arduino. This gave me enough information to wire up the pot:&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="http://localhost:2368/content/images/2015/02/2014-11-18-20-12-19.jpg" alt="An MCP4131 digital pot wired up to the Arduino"&gt;&lt;/p&gt;
+
+&lt;p&gt;The three loose wires in the lower right will eventually get hooked up to the speakers, but I wanted to run some tests with a multimeter first to make sure I had connected everything right so far. I should see a constant resistance of 10 ohms between the A and B leads, and a varying resistance from 0 to 10 ohms (depending on what I set from the Arduino) between either of those and the W (wiper) lead. At this point I could see the constant 10 ohm resistance, so I knew I was powering it correctly, but to test the varying resistance I needed some code on the Arduino.&lt;/p&gt;
+
+&lt;p&gt;The Arduino forum post I mentioned included a link to the &lt;a href="https://github.com/teabot/McpDigitalPot"&gt;McpDigitalPot&lt;/a&gt; library, a C++ library for controlling Microchip digital potentiometers with an Arduino. I was very pleasantly surprised by how easy it was to include a C++ library in an Arduino project. I just selected the library folder through the "Import Library..." option in the Arduino IDE, and it just worked.&lt;/p&gt;
+
+&lt;p&gt;Included with the library is an example program that initializes the potiometer and then repeatedly cycles through a series of resistance values. This is exactly what I needed to test the connections. A cycling resistance value on the multimeter would mean that I had wired it up correctly. So I tried it out, and lo and behold, it works!&lt;/p&gt;
+
+&lt;h3 id="wiringtherest"&gt;Wiring the rest&lt;/h3&gt;
+
+&lt;p&gt;With the hard part of the hardware component figured out, I just had to hook up my controller to the speakers. Remember from before, the speaker wiring looks like this:&lt;/p&gt;
+
+&lt;table&gt;  
+    &lt;thead&gt;
+        &lt;/thead&gt;&lt;td&gt; Pin
+        &lt;/td&gt;&lt;td&gt; Color
+        &lt;/td&gt;&lt;td&gt; Description
+    
+
+    &lt;tbody&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 1
+            &lt;/td&gt;&lt;td&gt; Yellow
+            &lt;/td&gt;&lt;td&gt; GND
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 2
+            &lt;/td&gt;&lt;td&gt; Orange
+            &lt;/td&gt;&lt;td&gt; Vref
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 3
+            &lt;/td&gt;&lt;td&gt; Green
+            &lt;/td&gt;&lt;td&gt; Balance potentiometer middle leg
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 4
+            &lt;/td&gt;&lt;td&gt; Red
+            &lt;/td&gt;&lt;td&gt; Volume potentiometer middle leg
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 5
+            &lt;/td&gt;&lt;td&gt; Black
+            &lt;/td&gt;&lt;td&gt; LED Vdd
+        &lt;/td&gt;&lt;/tr&gt;
+        &lt;tr&gt;
+            &lt;td&gt; 6
+            &lt;/td&gt;&lt;td&gt; Brown
+            &lt;/td&gt;&lt;td&gt; On Switch
+        &lt;/td&gt;&lt;/tr&gt;
+    &lt;/tbody&gt;
+&lt;/td&gt;&lt;/table&gt;
+
+&lt;p&gt;First, I made sure that the ground for the speakers was connected to the same common ground as the Arduino and the potentiometer. This makes it possible to control the power for the speakers by connecting pin 6 (the on switch) to one of the Arduino's digital output pins. When that pin is pulled low, the speakers turn on.&lt;/p&gt;
+
+&lt;p&gt;Then for the volume control, I needed to make a circuit through the A and B pins of the potentiometer by connecting them to speaker pins 1 and 2 (ground and Vref). The pot's W pin had to be connected to speaker pin 3 (the balance potentiometer middle leg, or wiper). And at this point, we have the complete circuit for our volume control!&lt;/p&gt;
+
+&lt;p&gt;&lt;img src="http://localhost:2368/content/images/2015/02/2014-11-24-16-41-42.jpg" alt="Finished wiring up the speakers"&gt;&lt;/p&gt;
+
+&lt;h3 id="nextsteps"&gt;Next steps&lt;/h3&gt;
+
+&lt;p&gt;Now that we have the hardware for the volume control figured out, we just have to write the software side. In the next post in this series, I'll take a look at the design for the server, and how I developed what looks like a modern RESTful web interface on the limited Arduino hardware.&lt;/p&gt;</content:encoded></item></channel></rss>
